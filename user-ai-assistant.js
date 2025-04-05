@@ -1,5 +1,6 @@
 // user-ai-assistant.js
 import { TelegramClient } from "telegram";
+import {  Api } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 import { NewMessage } from "telegram/events/index.js";
 import input from "input";
@@ -153,9 +154,45 @@ if (!process.env.STRING_SESSION && !fs.existsSync(".session")) {
   console.log("📂 Session saved to .session");
 }
 
+const REACTIONS = ["👍", "💅", "😐", "👀", "😅"];
+const REACTION_CHANCE = 0.07;
+
+async function maybeReact(msg) {
+  const roll = Math.random();
+  console.log(`🎯 Reaction roll: ${roll.toFixed(4)}`);
+  if (roll < REACTION_CHANCE) {
+    const emoji = REACTIONS[Math.floor(Math.random() * REACTIONS.length)];
+    console.log(`💡 Decided to react with: ${emoji}`);
+    try {
+      const peer = await client.getInputEntity(msg.peerId);
+
+      // Новый вызов через Api.messages.SendReaction
+      await client.invoke(
+        new Api.messages.SendReaction({
+          peer,
+          msgId: msg.id,
+          reaction: [new Api.ReactionEmoji({ emoticon: emoji })],
+          big: false,
+          addToRecent: false,
+        })
+      );
+
+      console.log(`✨ Reacted with ${emoji} to message: "${msg.message}"`);
+    } catch (err) {
+      console.warn("❌ Failed to react:", err.message);
+    }
+  } else {
+    console.log("💤 No reaction this time.");
+  }
+}
+
+
+
 client.addEventHandler(
   async (event) => {
     if (!event.message || !event.message.message || event.message.media) return;
+
+    await maybeReact(event.message);
 
     const msg = event.message;
     if (msg.out) return;
